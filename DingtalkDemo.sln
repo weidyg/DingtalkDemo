@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.32126.317
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DingtalkDemo", "DingtalkDemo\DingtalkDemo.csproj", "{F40EA730-51C9-483B-B88C-B977A6B6375B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F40EA730-51C9-483B-B88C-B977A6B6375B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F40EA730-51C9-483B-B88C-B977A6B6375B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F40EA730-51C9-483B-B88C-B977A6B6375B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F40EA730-51C9-483B-B88C-B977A6B6375B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {61A79227-A552-47D1-AF2A-EF9FB3B7C95A}
+	EndGlobalSection
+EndGlobal
