@@ -137,7 +137,7 @@ public class RobotsController : ControllerBase
     {
         var requestUri = _config["DingtalkRobot:Webhook"];
         var appSecret = _config["DingtalkRobot:Secret"];
-        if (appSecret != null)
+        if (!string.IsNullOrWhiteSpace(appSecret))
         {
             var (timestamp, sign) = GetSignInfo(appSecret);
             requestUri = $"{requestUri}&timestamp={timestamp}&sign={sign}";
