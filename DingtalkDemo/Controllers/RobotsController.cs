@@ -8,13 +8,19 @@ using System.Web;
 namespace DingtalkDemo.Controllers;
 
 [ApiController]
-[Route("[controller]")]
+[Route("robots")]
 public class RobotsController : ControllerBase
 {
+    private readonly IConfiguration _config;
+    private readonly ILogger<RobotsController> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
     public RobotsController(
+        IConfiguration configuration,
+        ILogger<RobotsController> logger,
         IHttpClientFactory httpClientFactory)
     {
+        _config = configuration;
+        _logger = logger;
         _httpClientFactory = httpClientFactory;
     }
 
@@ -24,7 +30,7 @@ public class RobotsController : ControllerBase
     /// 发送 Text 消息
     /// </summary>
     /// <returns></returns>
-    [HttpPost("Text")]
+    [HttpPost("text")]
     public async Task<ActionResult> SendTextInfo()
     {
         var at = new At()
@@ -41,7 +47,7 @@ public class RobotsController : ControllerBase
     /// 发送 Text 消息
     /// </summary>
     /// <returns></returns>
-    [HttpPost("Link")]
+    [HttpPost("link")]
     public async Task<ActionResult> SendLinkInfo()
     {
         var at = new At()
@@ -64,7 +70,7 @@ public class RobotsController : ControllerBase
     /// 发送 Markdown 消息
     /// </summary>
     /// <returns></returns>
-    [HttpPost("Markdown")]
+    [HttpPost("markdown")]
     public async Task<ActionResult> SendMarkdownInfo()
     {
         var at = new At()
@@ -85,7 +91,7 @@ public class RobotsController : ControllerBase
     /// 发送 ActionCard 消息
     /// </summary>
     /// <returns></returns>
-    [HttpPost("ActionCard")]
+    [HttpPost("cation-card")]
     public async Task<ActionResult> SendActionCardInfo()
     {
         var at = new At()
@@ -104,39 +110,36 @@ public class RobotsController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost("ReceiveInfo")]
-    public async Task<ActionResult> ReceiveInfo([FromBody] Rootobject info)
+    [HttpPost]
+    public async Task<ActionResult> ReceiveInfo(JsonElement json)
     {
-        var content = info?.Text?.Content ?? string.Empty;
-        var userId = info?.SenderStaffId ?? string.Empty;
-        var sessionWebhook = info?.SessionWebhook ?? string.Empty;
-
-        var at = new At()
+        try
         {
-            AtUserIds = new string[] { userId },
-            IsAtAll = false,
-        };
-        var message = new Text() { Content = $"@{userId}，测试@人员效果，你发的消息是：{content}！" };
-        var result = await SendDingTalkMessage("text", message, at, sessionWebhook);
-        return Ok(result);
+            WriteLog($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ReceiveInfo Request:\n{json}");
+            var info = json.Deserialize<OapiRobotInfo>();
+            var content = info?.Text?.Content ?? string.Empty;
+            var userId = info?.SenderStaffId ?? string.Empty;
+            var senderNick = info?.SenderNick ?? string.Empty;
+            var sessionWebhook = info?.SessionWebhook ?? string.Empty;
+            var at = new At()
+            {
+                AtUserIds = new string[] { userId },
+                IsAtAll = false,
+            };
+            var message = new Text() { Content = $"Hi {senderNick}，你发的消息是：{content}！" };
+
+            //var result = await SendDingTalkMessage("text", message, at, sessionWebhook);
+            var result = await Task.FromResult(GetRequestJsonString("text", message, at));
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            WriteLog($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ReceiveInfo Exception:\n{ex?.ToString()}");
+            return Ok(new { errcode = -1, errmsg = ex?.Message });
+        }
     }
 
-
-
-   
-    private async Task<string> SendDingTalkMessage(string msgtype, object message, At at)
-    {
-        var requestUri = "https://oapi.dingtalk.com/robot/send?access_token=44bea72f67d73bc63ddac63a97da4955a087044a564f399e24e1a473fd89de37";
-
-        #region 加密模式
-        var appSecret = "SECc099fa275f57df5811f8f35b233574bae0e33db613cf652e85b530ab92c6fa36";
-        var (timestamp, sign) = GetSignInfo(appSecret);
-        requestUri = $"{requestUri}&timestamp={timestamp}&sign={sign}";
-        #endregion
-        return await SendDingTalkMessage(msgtype, message, at, requestUri);
-    }
-
-    private async Task<string> SendDingTalkMessage(string msgtype, object message, At at, string requestUri)
+    private static string GetRequestJsonString(string msgtype, object message, At at)
     {
         var param = new Dictionary<string, object>
         {
@@ -144,12 +147,22 @@ public class RobotsController : ControllerBase
             { "msgtype", msgtype },
             { msgtype, message }
         };
-        var sendMessage = JsonSerializer.Serialize(param);
-        var request = new HttpRequestMessage(HttpMethod.Post, requestUri)
+        var result = JsonSerializer.Serialize(param);
+        return result;
+    }
+
+    private async Task<string> SendDingTalkMessage(string msgtype, object message, At at)
+    {
+        var requestUri = _config["DingtalkRobot:Webhook"];
+        var appSecret = _config["DingtalkRobot:Secret"];
+        if (appSecret != null)
         {
-            //钉钉文档需指定UTF8编码
-            Content = new StringContent(sendMessage, Encoding.UTF8, "application/json")
-        };
+            var (timestamp, sign) = GetSignInfo(appSecret);
+            requestUri = $"{requestUri}&timestamp={timestamp}&sign={sign}";
+        }
+        var sendMessage = GetRequestJsonString(msgtype, message, at);
+        var content = new StringContent(sendMessage, Encoding.UTF8, "application/json");
+        var request = new HttpRequestMessage(HttpMethod.Post, requestUri) { Content = content };
         var client = _httpClientFactory.CreateClient();
         var response = await client.SendAsync(request);
         var result = await response.Content.ReadAsStringAsync();
@@ -179,6 +192,12 @@ public class RobotsController : ControllerBase
         var zts = TimeZoneInfo.Local.BaseUtcOffset;
         var yc = new DateTime(1970, 1, 1).Add(zts);
         return (long)(time - yc).TotalMilliseconds;
+    }
+
+    private static void WriteLog(string? text)
+    {
+        using StreamWriter w = System.IO.File.AppendText("robots.log");
+        w.WriteLine(text);
     }
 }
 
@@ -237,7 +256,7 @@ public class Link
     public string? MessageUrl { get; set; }
 }
 
-public class Rootobject
+public class OapiRobotInfo
 {
     [JsonPropertyName("conversationId")]
     public string? ConversationId { get; set; }
@@ -267,7 +286,7 @@ public class Rootobject
     public long? SessionWebhookExpiredTime { get; set; }
 
     [JsonPropertyName("createAt")]
-    public string? CreateAt { get; set; }
+    public long? CreateAt { get; set; }
 
     [JsonPropertyName("senderCorpId")]
     public string? SenderCorpId { get; set; }
@@ -292,6 +311,9 @@ public class Rootobject
 
     [JsonPropertyName("msgtype")]
     public string? Msgtype { get; set; }
+
+    [JsonPropertyName("robotCode")]
+    public string? RobotCode { get; set; }
 }
 
 public class Atuser
