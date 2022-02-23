@@ -24,8 +24,6 @@ public class RobotsController : ControllerBase
         _httpClientFactory = httpClientFactory;
     }
 
-    private readonly string testAtMobile = "18698376676";
-
     /// <summary>
     /// 发送 Text 消息
     /// </summary>
@@ -33,12 +31,8 @@ public class RobotsController : ControllerBase
     [HttpPost("text")]
     public async Task<ActionResult> SendTextInfo()
     {
-        var at = new At()
-        {
-            AtMobiles = new string[] { testAtMobile },
-            IsAtAll = false,
-        };
-        var message = new Text() { Content = $"我就是我, @{testAtMobile} 是不一样的烟火" };
+        var at = new At() { IsAtAll = true, };
+        var message = new Text() { Content = $"我就是我, 我是不一样的烟火" };
         var result = await SendDingTalkMessage("text", message, at);
         return Ok(result);
     }
@@ -50,11 +44,7 @@ public class RobotsController : ControllerBase
     [HttpPost("link")]
     public async Task<ActionResult> SendLinkInfo()
     {
-        var at = new At()
-        {
-            AtMobiles = new string[] { testAtMobile },
-            IsAtAll = false,
-        };
+        var at = new At() { IsAtAll = true, };
         var message = new Link()
         {
             Title = "这是Link消息",
@@ -73,15 +63,11 @@ public class RobotsController : ControllerBase
     [HttpPost("markdown")]
     public async Task<ActionResult> SendMarkdownInfo()
     {
-        var at = new At()
-        {
-            AtMobiles = new string[] { testAtMobile },
-            IsAtAll = false,
-        };
+        var at = new At() { IsAtAll = true, };
         var message = new Markdown()
         {
             Title = $"杭州天气",
-            Text = $"#### 杭州天气 @{testAtMobile} \n> 9度，西北风1级，空气良89，相对温度73%\n> ![screenshot](https://img.alicdn.com/tfs/TB1NwmBEL9TBuNjy1zbXXXpepXa-2400-1218.png)\n> ###### 10点20分发布 [天气](https://www.dingalk.com) \n"
+            Text = $"#### 杭州天气 \n> 9度，西北风1级，空气良89，相对温度73%\n> ![screenshot](https://img.alicdn.com/tfs/TB1NwmBEL9TBuNjy1zbXXXpepXa-2400-1218.png)\n> ###### 10点20分发布 [天气](https://www.dingalk.com) \n"
         };
         var result = await SendDingTalkMessage("markdown", message, at);
         return Ok(result);
@@ -94,11 +80,7 @@ public class RobotsController : ControllerBase
     [HttpPost("cation-card")]
     public async Task<ActionResult> SendActionCardInfo()
     {
-        var at = new At()
-        {
-            AtMobiles = new string[] { testAtMobile },
-            IsAtAll = false,
-        };
+        var at = new At() { IsAtAll = true, };
         var message = new ActionCard()
         {
             Title = $"整体跳转actionCard消息",
