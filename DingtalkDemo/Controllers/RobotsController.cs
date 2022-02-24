@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Primitives;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -97,6 +98,8 @@ public class RobotsController : ControllerBase
     {
         try
         {
+            var isSignMatch = VerifySign(Request.Headers);
+            if (!isSignMatch) { return Ok(new { errcode = "310000", errmsg = "sign not match" }); }
             WriteLog($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ReceiveInfo Request:\n{json}");
             var info = json.Deserialize<OapiRobotInfo>();
             var content = info?.Text?.Content ?? string.Empty;
@@ -139,8 +142,9 @@ public class RobotsController : ControllerBase
         var appSecret = _config["DingtalkRobot:Secret"];
         if (!string.IsNullOrWhiteSpace(appSecret))
         {
-            var (timestamp, sign) = GetSignInfo(appSecret);
-            requestUri = $"{requestUri}&timestamp={timestamp}&sign={sign}";
+            var timestamp = ToUTC(DateTime.Now);
+            var sign = GetSignInfo(timestamp, appSecret);
+            requestUri = $"{requestUri}&timestamp={timestamp}&sign={HttpUtility.UrlEncode(sign)}";
         }
         var sendMessage = GetRequestJsonString(msgtype, message, at);
         var content = new StringContent(sendMessage, Encoding.UTF8, "application/json");
@@ -152,35 +156,47 @@ public class RobotsController : ControllerBase
         //{"errcode":310000,"errmsg":"sign not match, more: [https://ding-doc.dingtalk.com/doc#/serverapi2/qf2nxq]"}
         return result;
     }
-    private static (long timestamp, string sign) GetSignInfo(string appSecret)
+
+    #region 
+    private bool VerifySign(IDictionary<string, StringValues> headers)
     {
-        var timestamp = ToUTC(DateTime.Now);
-        var stringToSign = $"{timestamp}\n{appSecret}";
-        var b64 = GetHmac(stringToSign, appSecret);
-        var b64Str = Convert.ToBase64String(b64);
-        var sign = HttpUtility.UrlEncode(b64Str);
-        return (timestamp, sign);
+        //var token = headers["token"].ToString();
+        var timestampStr = headers["timestamp"].ToString();
+        var signStr = headers["sign"].ToString();
+
+        var isTimestamp = long.TryParse(timestampStr, out long timestamp);
+        var minTimestamp = ToUTC(DateTime.Now.AddHours(-1));
+        if (isTimestamp && timestamp >= minTimestamp)
+        {
+            var appSecret = _config["DingtalkRobot:AppSecret"];
+            var localSign = GetSignInfo(timestamp, appSecret);
+            if (signStr == localSign) { return true; }
+        }
+        return false;
     }
-    private static byte[] GetHmac(string message, string secret)
+    private static string GetSignInfo(long timestamp, string appSecret)
     {
-        byte[] keyByte = Encoding.UTF8.GetBytes(secret);
-        byte[] messageBytes = Encoding.UTF8.GetBytes(message);
+        var stringToSign = $"{timestamp}\n{appSecret}";
+        var keyByte = Encoding.UTF8.GetBytes(appSecret);
+        var messageBytes = Encoding.UTF8.GetBytes(stringToSign);
         using var hmacsha256 = new HMACSHA256(keyByte);
         byte[] hashmessage = hmacsha256.ComputeHash(messageBytes);
-        return hashmessage;
+        var sign = Convert.ToBase64String(hashmessage);
+        return sign;
     }
+
     public static long ToUTC(DateTime time)
     {
         var zts = TimeZoneInfo.Local.BaseUtcOffset;
         var yc = new DateTime(1970, 1, 1).Add(zts);
         return (long)(time - yc).TotalMilliseconds;
     }
-
     private static void WriteLog(string? text)
     {
         using StreamWriter w = System.IO.File.AppendText("robots.log");
         w.WriteLine(text);
     }
+    #endregion
 }
 
 
@@ -238,6 +254,7 @@ public class Link
     public string? MessageUrl { get; set; }
 }
 
+//https://open.dingtalk.com/document/group/receive-message
 public class OapiRobotInfo
 {
     [JsonPropertyName("conversationId")]
@@ -273,6 +290,9 @@ public class OapiRobotInfo
     [JsonPropertyName("senderCorpId")]
     public string? SenderCorpId { get; set; }
 
+    /// <summary>
+    /// 1£ºµ¥ÁÄ 2£ºÈºÁÄ
+    /// </summary>
     [JsonPropertyName("conversationType")]
     public string? ConversationType { get; set; }
 
